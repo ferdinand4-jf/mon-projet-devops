@@ -1,0 +1,12 @@
+# Dépendances locales
+node_modules/
+.next/
+dist/
+*.log
+
+# Environnement et secrets
+backend/.env
+.env.local
+
+# Docker data local (pour ne pas commit ta bdd)
+pgdata/
