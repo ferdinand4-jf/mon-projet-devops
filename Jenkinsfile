@@ -6,8 +6,8 @@ pipeline {
         DOCKER_USER = 'jho42'
         VERSION = "v${env.BUILD_NUMBER}"
         
-        // Paramètre SonarQube
-        SONAR_URL = 'http://localhost:9000'
+        // Paramètre SonarQube : Correction de localhost vers le nom du conteneur docker
+        SONAR_URL = 'http://sonarqube:9000'
     }
 
     stages {
@@ -42,6 +42,7 @@ pipeline {
             steps {
                 echo '=== Analyse statique du code en cours ==='
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
+                    // Utilisation de \$SONAR_AUTH_TOKEN pour masquer le secret de manière sécurisée
                     sh """
                         docker run --rm \
                         --network="devops-network" \
@@ -50,7 +51,7 @@ pipeline {
                         -Dsonar.projectKey=mon-projet-devops \
                         -Dsonar.projectName="Mon Projet DevOps" \
                         -Dsonar.host.url=${SONAR_URL} \
-                        -Dsonar.token=${SONAR_AUTH_TOKEN} \
+                        -Dsonar.token=\$SONAR_AUTH_TOKEN \
                         -Dsonar.sources=. \
                         -Dsonar.exclusions=**/node_modules/**,**/.next/**
                     """
@@ -78,9 +79,7 @@ pipeline {
         stage('6. Livraison sur Docker Hub') {
             steps {
                 echo '=== Authentification et envoi vers le Registre distant ==='
-                // Utilisation de string() car ton identifiant Jenkins est un Secret Text
                 withCredentials([string(credentialsId: 'docker-hub-credentials', variable: 'DOCKER_HUB_TOKEN')]) {
-                    // Connexion en utilisant ton pseudo en clair et le jeton sécurisé
                     sh "echo \$DOCKER_HUB_TOKEN | docker login -u ${DOCKER_USER} --password-stdin"
                     sh "docker push ${DOCKER_USER}/mon-projet-devops-frontend:${VERSION}"
                     sh "docker push ${DOCKER_USER}/mon-projet-devops-backend:${VERSION}"
@@ -93,7 +92,6 @@ pipeline {
     post {
         always {
             echo '=== Fin de l\'exécution du pipeline ==='
-            // Plus de commande "sh" ici pour éviter l'erreur de FilePath obsolète
         }
     }
 }
