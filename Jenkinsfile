@@ -42,7 +42,6 @@ pipeline {
             steps {
                 echo '=== Analyse statique du code en cours ==='
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
-                    // Ajout des variables d'optimisation Node.js et des paramètres de performance Docker
                     sh """
                         docker run --rm \
                         --network="devops-network" \
@@ -53,7 +52,6 @@ pipeline {
                         -Dsonar.projectKey=mon-projet-devops \
                         -Dsonar.projectName="Mon Projet DevOps" \
                         -Dsonar.host.url=${SONAR_URL} \
-                        -Dsonar.token=\$SONAR_TOKEN \
                         -Dsonar.sources=. \
                         -Dsonar.exclusions=**/node_modules/**,**/.next/** \
                         -Dsonar.javascript.node.maxspace=2048
