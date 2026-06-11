@@ -60,11 +60,11 @@ pipeline {
             }
         }
 
-        stage('4. Validation de la Quality Gate') {
-            timeout(time: 5, unit: 'MINUTES') {
-                steps {
+       stage('4. Validation de la Quality Gate') {
+            steps {
+                // Le timeout est maintenant correctement placé à l'intérieur de steps
+                timeout(time: 5, unit: 'MINUTES') {
                     echo '=== Vérification des critères de qualité SonarQube ==='
-                    // Jenkins interroge le serveur SonarQube. Si le projet échoue aux critères, le build s'arrête ici.
                     waitForQualityGate abortPipeline: true
                 }
             }
