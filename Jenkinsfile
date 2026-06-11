@@ -38,7 +38,7 @@ pipeline {
             }
         }
 
-       stage('3. Analyse DevSecOps (SonarQube)') {
+      stage('3. Analyse DevSecOps (SonarQube)') {
             steps {
                 echo '=== Analyse statique du code en cours ==='
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
@@ -54,7 +54,10 @@ pipeline {
                         -Dsonar.host.url=${SONAR_URL} \
                         -Dsonar.sources=. \
                         -Dsonar.exclusions=**/node_modules/**,**/.next/** \
-                        -Dsonar.javascript.node.maxspace=2048
+                        -Dsonar.javascript.node.maxspace=2048 \
+                        -Dsonar.ws.timeout=600 \
+                        -Dsonar.scanner.connectTimeout=600000 \
+                        -Dsonar.scanner.socketTimeout=600000
                     """
                 }
             }
