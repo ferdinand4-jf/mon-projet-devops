@@ -38,22 +38,25 @@ pipeline {
             }
         }
 
-        stage('3. Analyse DevSecOps (SonarQube)') {
+       stage('3. Analyse DevSecOps (SonarQube)') {
             steps {
                 echo '=== Analyse statique du code en cours ==='
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
-                    // Utilisation de \$SONAR_AUTH_TOKEN pour masquer le secret de manière sécurisée
+                    // Ajout des variables d'optimisation Node.js et des paramètres de performance Docker
                     sh """
                         docker run --rm \
                         --network="devops-network" \
                         -v "${WORKSPACE}:/usr/src" \
+                        -e SONAR_TOKEN=\$SONAR_AUTH_TOKEN \
+                        -e NODE_OPTIONS="--max-old-space-size=2048" \
                         sonarsource/sonar-scanner-cli \
                         -Dsonar.projectKey=mon-projet-devops \
                         -Dsonar.projectName="Mon Projet DevOps" \
                         -Dsonar.host.url=${SONAR_URL} \
-                        -Dsonar.token=\$SONAR_AUTH_TOKEN \
+                        -Dsonar.token=\$SONAR_TOKEN \
                         -Dsonar.sources=. \
-                        -Dsonar.exclusions=**/node_modules/**,**/.next/**
+                        -Dsonar.exclusions=**/node_modules/**,**/.next/** \
+                        -Dsonar.javascript.node.maxspace=2048
                     """
                 }
             }
