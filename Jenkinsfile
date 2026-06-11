@@ -43,7 +43,7 @@ pipeline {
                 echo '=== ÉTAPES 4 : Execution de tests Backend ==='
                 dir('backend') {
                     sh 'npm install'
-                    sh 'npm tests'
+                    sh 'npm test'
                 }
             }
         }
