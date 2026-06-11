@@ -2,83 +2,97 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_COMPOSE_CMD = 'docker compose'
+        // Paramètres Docker Hub
+        DOCKER_USER = 'jho42' // Mettre ton vrai pseudo Docker Hub
+        DOCKER_CREDENTIALS = credentials('docker-hub-credentials')
+        VERSION = "v${env.BUILD_NUMBER}"
+        
+        // Paramètre SonarQube
+        SONAR_URL = 'http://localhost:9000'
     }
 
     stages {
-        stage('Clonage & Vérification') {
+        stage('1. Récupération du Code') {
             steps {
-                echo '=== ÉTAPE 1 : Récupération du code source ==='
-                // Jenkins récupère automatiquement le projet si lié à Git
-                sh 'node --version'
-                sh 'docker --version'
+                checkout scm
             }
         }
 
-        stage('Installation & Linters') {
-            steps {
-                echo '=== ÉTAPE 2 : Validation du code source (Linting) ==='
-                dir('backend') {
-                    // Analyse optionnelle ou installation de test
-                    echo 'Vérification du Backend...'
+        stage('2. Tests Unitaires') {
+            parallel {
+                stage('Frontend Tests') {
+                    steps {
+                        dir('frontend') {
+                            sh 'npm install'
+                            sh 'npm test'
+                        }
+                    }
                 }
-                dir('frontend') {
-                    echo 'Vérification du Frontend...'
-                }
-            }
-        }
-        
-        stage('Tests Frontend') {
-            steps {
-                echo '=== ÉTAPE 3 : Execution de tests Frontend ==='
-                dir('frontend') {
-                    sh 'npm install'
-                    sh 'npm test'
+                stage('Backend Tests') {
+                    steps {
+                        dir('backend') {
+                            sh 'npm install'
+                            sh 'npm test'
+                        }
+                    }
                 }
             }
         }
 
-        stage('Tests Backend') {
+        stage('3. Analyse DevSecOps (SonarQube)') {
             steps {
-                echo '=== ÉTAPES 4 : Execution de tests Backend ==='
-                dir('backend') {
-                    sh 'npm install'
-                    sh 'npm test'
+                echo '=== Analyse statique du code en cours ==='
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
+                    // Utilisation du conteneur officiel sonar-scanner pour auditer le projet
+                    sh """
+                        docker run --rm \
+                        --network="devops-network" \
+                        -v "${WORKSPACE}:/usr/src" \
+                        sonarsource/sonar-scanner-cli \
+                        -Dsonar.projectKey=mon-projet-devops \
+                        -Dsonar.projectName="Mon Projet DevOps" \
+                        -Dsonar.host.url=${SONAR_URL} \
+                        -Dsonar.token=${SONAR_AUTH_TOKEN} \
+                        -Dsonar.sources=. \
+                        -Dsonar.exclusions=**/node_modules/**,**/.next/**
+                    """
                 }
             }
         }
-        stage('Arrêt des anciens conteneurs') {
-            steps {
-                echo '=== ÉTAPE 5 : Nettoyage de l environnement existant ==='
-                // Évite les conflits de ports si le projet tournait déjà
-                sh "${DOCKER_COMPOSE_CMD} down --remove-orphans"
+
+        stage('4. Validation de la Quality Gate') {
+            timeout(time: 5, unit: 'MINUTES') {
+                steps {
+                    echo '=== Vérification des critères de qualité SonarQube ==='
+                    // Jenkins interroge le serveur SonarQube. Si le projet échoue aux critères, le build s'arrête ici.
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
 
-        stage('Build des Images Docker') {
+        stage('5. Production des Images Docker') {
             steps {
-                echo '=== ÉTAPE 6 : Compilation et assemblage des images ==='
-                // Build les images sans utiliser le cache pour s'assurer que le nouveau code est pris en compte
-                sh "${DOCKER_COMPOSE_CMD} build --no-cache"
+                echo '=== Construction des images applicatives ==='
+                sh "docker build -t ${DOCKER_USER}/mon-projet-devops-frontend:${VERSION} ./frontend"
+                sh "docker build -t ${DOCKER_USER}/mon-projet-devops-backend:${VERSION} ./backend"
             }
         }
 
-        stage('Déploiement de l Application') {
+        stage('6. Livraison sur Docker Hub') {
             steps {
-                echo '=== ÉTAPE 6 : Lancement de l infrastructure conteneurisée ==='
-                // Démarre les conteneurs en tâche de fond (-d)
-                sh "${DOCKER_COMPOSE_CMD} up -d"
-                echo '=== PIPELINE TERMINÉ AVEC SUCCÈS ! ==='
+                echo '=== Authentification et envoi vers le Registre distant ==='
+                sh "echo \$DOCKER_CREDENTIALS_PSW | docker login -u \$DOCKER_CREDENTIALS_USR --password-stdin"
+                sh "docker push ${DOCKER_USER}/mon-projet-devops-frontend:${VERSION}"
+                sh "docker push ${DOCKER_USER}/mon-projet-devops-backend:${VERSION}"
             }
         }
     }
 
     post {
         always {
-            echo 'Nettoyage des fichiers temporaires du workspace...'
-        }
-        failure {
-            echo '⚠️ Le pipeline a échoué. Une alerte ou un log doit être analysé.'
+            echo '=== Nettoyage de la session d\'exécution ==='
+            sh 'docker logout || true'
+            sh 'docker image prune -f'
         }
     }
 }
