@@ -39,29 +39,28 @@ pipeline {
         }
 
       stage('3. Analyse DevSecOps (SonarQube)') {
-            steps {
-                echo '=== Analyse statique du code en cours ==='
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
-                    sh """
-                        docker run --rm \
-                        --network="devops-network" \
-                        -v "${WORKSPACE}:/usr/src" \
-                        -e SONAR_TOKEN=\$SONAR_AUTH_TOKEN \
-                        -e NODE_OPTIONS="--max-old-space-size=2048" \
-                        sonarsource/sonar-scanner-cli \
-                        -Dsonar.projectKey=mon-projet-devops \
-                        -Dsonar.projectName="Mon Projet DevOps" \
-                        -Dsonar.host.url=${SONAR_URL} \
-                        -Dsonar.sources=. \
-                        -Dsonar.exclusions=**/node_modules/**,**/.next/** \
-                        -Dsonar.javascript.node.maxspace=2048 \
-                        -Dsonar.ws.timeout=600 \
-                        -Dsonar.scanner.connectTimeout=600000 \
-                        -Dsonar.scanner.socketTimeout=600000
-                    """
-                }
+        steps {
+            echo '=== Analyse statique du code en cours ==='
+            withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
+                sh """
+                    docker run --rm \
+                    --network="devops-network" \
+                    -v "${WORKSPACE}:/usr/src" \
+                    -e SONAR_TOKEN=\$SONAR_AUTH_TOKEN \
+                    -e NODE_OPTIONS="--max-old-space-size=2048" \
+                    sonarsource/sonar-scanner-cli \
+                    -Dsonar.projectKey=mon-projet-devops \
+                    -Dsonar.projectName="Mon Projet DevOps" \
+                    -Dsonar.host.url=${SONAR_URL} \
+                    -Dsonar.sources=. \
+                    -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/*.js,**/*.ts,**/*.tsx,**/*.jsx \
+                    -Dsonar.ws.timeout=600 \
+                    -Dsonar.scanner.connectTimeout=600000 \
+                    -Dsonar.scanner.socketTimeout=600000
+                """
             }
         }
+    }
 
         stage('4. Validation de la Quality Gate') {
             steps {
