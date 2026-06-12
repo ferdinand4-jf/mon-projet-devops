@@ -37,6 +37,7 @@ pipeline {
         stage('3. Analyse DevSecOps (SonarQube)') {
             steps {
                 echo '=== Analyse statique du code en cours ==='
+                sh 'rm -rf ${WORKSPACE}/.scannerwork && mkdir -p ${WORKSPACE}/.scannerwork && chmod 777 ${WORKSPACE}/.scannerwork'
                 withSonarQubeEnv('SonarQube') {
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
                         sh """
@@ -52,7 +53,7 @@ pipeline {
                             -Dsonar.host.url=${SONAR_URL} \
                             -Dsonar.sources=. \
                             -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/*.js,**/*.ts,**/*.tsx,**/*.jsx,**/*.css \
-                            -Dsonar.ws.timeout=600
+                            -Dsonar.scanner.socketTimeout=600
                         """
                     }
                 }
@@ -91,6 +92,8 @@ pipeline {
 
     post {
         always {
+            // Nettoyage des permissions root laissées par Docker
+            sh 'rm -rf ${WORKSPACE}/.scannerwork || true'
             echo '=== Fin de l\'exécution du pipeline ==='
         }
         success {
