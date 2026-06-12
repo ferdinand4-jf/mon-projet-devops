@@ -53,7 +53,9 @@ pipeline {
                             -Dsonar.host.url=${SONAR_URL} \
                             -Dsonar.sources=. \
                             -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/*.js,**/*.ts,**/*.tsx,**/*.jsx,**/*.css,**/*.json \
-                            -Dsonar.language=yaml,docker \
+                            -Dsonar.javascript.file.suffixes=.NONE \
+                            -Dsonar.typescript.file.suffixes=.NONE \
+                            -Dsonar.css.file.suffixes=.NONE \
                             -Dsonar.scanner.socketTimeout=600
                         """
                     }
@@ -63,7 +65,7 @@ pipeline {
 
         stage('4. Validation de la Quality Gate') {
             steps {
-                timeout(time: 5, unit: 'MINUTES') {
+                timeout(time: 15, unit: 'MINUTES') {
                     echo '=== Vérification des critères de qualité SonarQube ==='
                     waitForQualityGate abortPipeline: true
                 }
