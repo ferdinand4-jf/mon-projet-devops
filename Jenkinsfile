@@ -1,16 +1,12 @@
 pipeline {
     agent any
-
     environment {
-        // Pseudo Docker Hub
         DOCKER_USER = 'jho42'
         VERSION = "v${env.BUILD_NUMBER}"
-        
-        // Paramètre SonarQube : Correction de localhost vers le nom du conteneur docker
         SONAR_URL = 'http://sonarqube:9000'
     }
-
     stages {
+
         stage('1. Récupération du Code') {
             steps {
                 checkout scm
@@ -38,35 +34,30 @@ pipeline {
             }
         }
 
-      stage('3. Analyse DevSecOps (SonarQube)') {
-        steps {
-            echo '=== Analyse statique du code en cours ==='
-            withSonarQubeEnv('SonarQube') {  // 'SonarQube' = nom configuré dans Jenkins > Configure System
-                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
-                    sh """
-                        docker run --rm \
-                        --network="devops-network" \
-                        -v "${WORKSPACE}:/usr/src" \
-                        -v "\$(which node):/usr/local/bin/node" \
-                        -e SONAR_TOKEN=\$SONAR_AUTH_TOKEN \
-                        -e NODE_OPTIONS="--max-old-space-size=2048" \
-                        -e SONAR_SCANNER_OPTS="-Xmx1g" \
-                        sonarsource/sonar-scanner-cli \
-                        -Dsonar.projectKey=mon-projet-devops \
-                        -Dsonar.projectName="Mon Projet DevOps" \
-                        -Dsonar.host.url=${SONAR_URL} \
-                        -Dsonar.sources=. \
-                        -Dsonar.exclusions=**/node_modules/**,**/.next/** \
-                        -Dsonar.nodejs.executable=/usr/local/bin/node \
-                        -Dsonar.javascript.node.maxspace=2048 \
-                        -Dsonar.ws.timeout=600 \
-                        -Dsonar.scanner.connectTimeout=600000 \
-                        -Dsonar.scanner.socketTimeout=600000
-                    """
+        stage('3. Analyse DevSecOps (SonarQube)') {
+            steps {
+                echo '=== Analyse statique du code en cours ==='
+                withSonarQubeEnv('SonarQube') {
+                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
+                        sh """
+                            docker run --rm \
+                            --network="devops-network" \
+                            -v "${WORKSPACE}:/usr/src" \
+                            -v "${WORKSPACE}/.scannerwork:/tmp/.scannerwork" \
+                            -e SONAR_TOKEN=\$SONAR_AUTH_TOKEN \
+                            -e SONAR_SCANNER_OPTS="-Xmx1g" \
+                            sonarsource/sonar-scanner-cli \
+                            -Dsonar.projectKey=mon-projet-devops \
+                            -Dsonar.projectName="Mon Projet DevOps" \
+                            -Dsonar.host.url=${SONAR_URL} \
+                            -Dsonar.sources=. \
+                            -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/*.js,**/*.ts,**/*.tsx,**/*.jsx,**/*.css \
+                            -Dsonar.ws.timeout=600
+                        """
+                    }
                 }
             }
         }
-    }
 
         stage('4. Validation de la Quality Gate') {
             steps {
@@ -101,6 +92,12 @@ pipeline {
     post {
         always {
             echo '=== Fin de l\'exécution du pipeline ==='
+        }
+        success {
+            echo '=== Pipeline terminé avec succès ==='
+        }
+        failure {
+            echo '=== Pipeline en échec — vérifier les logs ==='
         }
     }
 }
