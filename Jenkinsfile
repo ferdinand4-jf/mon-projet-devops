@@ -46,14 +46,18 @@ pipeline {
                     docker run --rm \
                     --network="devops-network" \
                     -v "${WORKSPACE}:/usr/src" \
+                    -v "\$(which node):/usr/local/bin/node" \
                     -e SONAR_TOKEN=\$SONAR_AUTH_TOKEN \
                     -e NODE_OPTIONS="--max-old-space-size=2048" \
+                    -e SONAR_SCANNER_OPTS="-Xmx1g" \
                     sonarsource/sonar-scanner-cli \
                     -Dsonar.projectKey=mon-projet-devops \
                     -Dsonar.projectName="Mon Projet DevOps" \
                     -Dsonar.host.url=${SONAR_URL} \
                     -Dsonar.sources=. \
-                    -Dsonar.exclusions=**/node_modules/**,**/.next/**,**/*.js,**/*.ts,**/*.tsx,**/*.jsx \
+                    -Dsonar.exclusions=**/node_modules/**,**/.next/** \
+                    -Dsonar.nodejs.executable=/usr/local/bin/node \
+                    -Dsonar.javascript.node.maxspace=2048 \
                     -Dsonar.ws.timeout=600 \
                     -Dsonar.scanner.connectTimeout=600000 \
                     -Dsonar.scanner.socketTimeout=600000
